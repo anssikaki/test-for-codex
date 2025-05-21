@@ -79,7 +79,7 @@ const sentences = rest.join(' ').split(/(?<=[.!?])\s+/).filter(Boolean);
 const titleEl = document.getElementById('title');
 const storyEl = document.getElementById('story');
 const speed = {typing_speed};
-function createStars(n){{
+function createStars(n){
   const field=document.getElementById('starfield');
   field.innerHTML='';
   for(let i=0;i<n;i++){{
@@ -91,6 +91,7 @@ function createStars(n){{
     field.appendChild(s);
   }}
 }}
+}
 function sleep(ms){{return new Promise(r=>setTimeout(r,ms))}}
 async function typeSentence(text){{
   const p=document.createElement('p');

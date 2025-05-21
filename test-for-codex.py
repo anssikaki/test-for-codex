@@ -90,6 +90,7 @@ function createStars(n){
     s.style.animationDelay=-Math.random()*60+'s';
     field.appendChild(s);
   }}
+}}
 }
 function sleep(ms){{return new Promise(r=>setTimeout(r,ms))}}
 async function typeSentence(text){{

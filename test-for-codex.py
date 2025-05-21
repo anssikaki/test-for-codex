@@ -160,4 +160,4 @@ if st.session_state.game_over:
 else:
     status.write(f"Player {st.session_state.current_player}'s turn")
 
-st.button("Reset Game", on_click=reset_game)
+st.button("Reset Game!", on_click=reset_game)

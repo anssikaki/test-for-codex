@@ -1,144 +1,127 @@
-import logging
-import random
-from typing import List, Optional
-
 import streamlit as st
-import openai
-from tictactoe_components import html_code
 
-openai.api_key = st.secrets["openai"]["api_key"]
 
-# Configure logging
-logging.basicConfig(
-    filename="tictactoe.log",
-    filemode="w",
-    level=logging.DEBUG,
-    format="%(asctime)s - %(levelname)s - %(message)s",
+def visual_storyteller_html(story: str, typing_speed: int = 40) -> str:
+    """Return embeddable HTML for the animated story viewer."""
+    escaped = story.replace("`", "\`")
+    return """
+<div id='starfield'></div>
+<div class='wrapper'>
+  <h1 id='title'></h1>
+  <div id='story'></div>
+  <button id='restart'>Restart</button>
+</div>
+<style>
+  body {{
+    margin:0;
+    background:linear-gradient(#000710,#040b20);
+    color:#fff;
+    font-family:Arial,Helvetica,sans-serif;
+    height:100%;
+    overflow:hidden;
+  }}
+  .wrapper {{
+    position:relative;
+    max-width:800px;
+    margin:0 auto;
+    padding:2rem;
+    height:90vh;
+    overflow-y:auto;
+    text-align:center;
+  }}
+  #title {{
+    font-size:2rem;
+    margin-bottom:1rem;
+    opacity:0;
+    animation:fadeIn 2s forwards;
+    text-shadow:0 0 8px #89b4fa;
+  }}
+  .sentence {{
+    margin:1rem 0;
+    font-size:1.2rem;
+    text-shadow:0 0 6px #89b4fa;
+  }}
+  #restart {{
+    margin-top:1rem;
+    padding:0.5rem 1.2rem;
+    background:#111;
+    border:none;
+    color:#fff;
+    border-radius:6px;
+    cursor:pointer;
+  }}
+  #starfield {{
+    position:fixed;
+    top:0;left:0;width:100%;height:100%;
+    z-index:-1;
+    overflow:hidden;
+  }}
+  .star {{
+    position:absolute;
+    bottom:-2px;
+    width:2px;height:2px;
+    background:rgba(255,255,255,0.8);
+    border-radius:50%;
+    animation:float linear infinite;
+  }}
+  @keyframes float {{
+    from {{transform:translateY(0)}}
+    to {{transform:translateY(-110vh)}}
+  }}
+  @keyframes fadeIn {{
+    to {{opacity:1}}
+  }}
+</style>
+<script>
+const story = `{escaped}`;
+const [titleText, ...rest] = story.trim().split(/\n+/);
+const sentences = rest.join(' ').split(/(?<=[.!?])\s+/).filter(Boolean);
+const titleEl = document.getElementById('title');
+const storyEl = document.getElementById('story');
+const speed = {typing_speed};
+function createStars(n){{
+  const field=document.getElementById('starfield');
+  field.innerHTML='';
+  for(let i=0;i<n;i++){{
+    const s=document.createElement('div');
+    s.className='star';
+    s.style.left=Math.random()*100+'%';
+    s.style.animationDuration=20+Math.random()*40+'s';
+    s.style.animationDelay=-Math.random()*60+'s';
+    field.appendChild(s);
+  }}
+}}
+function sleep(ms){{return new Promise(r=>setTimeout(r,ms))}}
+async function typeSentence(text){{
+  const p=document.createElement('p');
+  p.className='sentence';
+  storyEl.appendChild(p);
+  for(let i=0;i<text.length;i++){{
+    p.textContent+=text.charAt(i);
+    storyEl.scrollTop=storyEl.scrollHeight;
+    await sleep(speed);
+  }}
+  await sleep(500);
+}}
+async function play(){{
+  storyEl.innerHTML='';
+  titleEl.textContent=titleText;
+  await sleep(500);
+  for(const s of sentences){{
+    await typeSentence(s);
+  }}
+}}
+document.getElementById('restart').addEventListener('click',play);
+createStars(80);
+play();
+</script>
+""".format(escaped=escaped, typing_speed=typing_speed)
+
+
+st.title("Visual Storyteller")
+user_story = st.text_area(
+    "Enter a story (first line is the title)",
+    "The Enchanted Forest\nStars shimmered above the quiet trees. A soft wind whispered secrets. Magic lingered in every shadow."
 )
-
-
-def init_game():
-    if "board" not in st.session_state:
-        st.session_state.board = ["" for _ in range(9)]
-    if "current_player" not in st.session_state:
-        st.session_state.current_player = "X"
-    if "game_over" not in st.session_state:
-        st.session_state.game_over = False
-    if "scores" not in st.session_state:
-        st.session_state.scores = {"X": 0, "O": 0, "Draw": 0}
-    if "mode" not in st.session_state:
-        st.session_state.mode = "Single Player"
-    if "winning_combo" not in st.session_state:
-        st.session_state.winning_combo = None
-    logging.debug("Game initialized")
-
-
-def check_winner() -> Optional[str]:
-    board = st.session_state.board
-    combos = [
-        (0, 1, 2), (3, 4, 5), (6, 7, 8),
-        (0, 3, 6), (1, 4, 7), (2, 5, 8),
-        (0, 4, 8), (2, 4, 6),
-    ]
-    for i, j, k in combos:
-        if board[i] and board[i] == board[j] == board[k]:
-            logging.info("Player %s wins with combo %s-%s-%s", board[i], i+1, j+1, k+1)
-            st.session_state.winning_combo = (i, j, k)
-            return board[i]
-    if all(cell for cell in board):
-        logging.info("Game ends in a draw")
-        return "Draw"
-    return None
-
-
-def handle_move(pos: int):
-    if st.session_state.board[pos] or st.session_state.game_over:
-        return
-    st.session_state.board[pos] = st.session_state.current_player
-    logging.info("Player %s moved to position %s", st.session_state.current_player, pos+1)
-    result = check_winner()
-    if result:
-        st.session_state.game_over = True
-        if result == "Draw":
-            st.session_state.scores["Draw"] += 1
-            st.success("It's a draw!")
-        else:
-            st.session_state.scores[result] += 1
-            st.success(f"Player {result} wins!")
-    else:
-        st.session_state.current_player = "O" if st.session_state.current_player == "X" else "X"
-
-        if st.session_state.mode == "Single Player" and st.session_state.current_player == "O":
-            ai_move()
-
-
-def ai_move():
-    """Make a move for the computer player using a simple strategy."""
-    board = st.session_state.board
-    combos = [
-        (0, 1, 2), (3, 4, 5), (6, 7, 8),
-        (0, 3, 6), (1, 4, 7), (2, 5, 8),
-        (0, 4, 8), (2, 4, 6),
-    ]
-
-    def find_move(player: str) -> Optional[int]:
-        for i, j, k in combos:
-            line = [board[i], board[j], board[k]]
-            if line.count(player) == 2 and line.count("") == 1:
-                return [i, j, k][line.index("")]
-        return None
-
-    # win if possible
-    move = find_move("O")
-    if move is None:
-        # block opponent
-        move = find_move("X")
-    if move is None and board[4] == "":
-        move = 4
-    if move is None:
-        corners = [i for i in [0, 2, 6, 8] if board[i] == ""]
-        move = random.choice(corners) if corners else None
-    if move is None:
-        empty = [i for i, cell in enumerate(board) if cell == ""]
-        move = random.choice(empty)
-
-    handle_move(move)
-
-def reset_game():
-    st.session_state.board = ["" for _ in range(9)]
-    st.session_state.current_player = "X"
-    st.session_state.game_over = False
-    st.session_state.winning_combo = None
-    logging.debug("Game reset")
-
-
-init_game()
-
-st.title("Tic Tac Toe")
-
-st.sidebar.header("Settings")
-mode = st.sidebar.radio(
-    "Mode",
-    options=["Single Player", "Two Player"],
-    index=0 if st.session_state.mode == "Single Player" else 1,
-)
-if mode != st.session_state.mode:
-    st.session_state.mode = mode
-    reset_game()
-
-st.sidebar.subheader("Scoreboard")
-st.sidebar.write(f"X: {st.session_state.scores['X']}")
-st.sidebar.write(f"O: {st.session_state.scores['O']}")
-st.sidebar.write(f"Draws: {st.session_state.scores['Draw']}")
-
-status = st.empty()
-
-st.components.v1.html(html_code, height=400)
-
-# status.write can still be used to display the current player or other
-# information alongside the embedded component if desired.
-# For now, we simply show the player's turn when the game isn't over.
-if not st.session_state.game_over:
-    status.write(f"Player {st.session_state.current_player}'s turn")
-
-st.button("Reset Game!", on_click=reset_game)
+html_code = visual_storyteller_html(user_story)
+st.components.v1.html(html_code, height=600, scrolling=True)

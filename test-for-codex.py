@@ -4,6 +4,7 @@ from typing import List, Optional
 
 import streamlit as st
 import openai
+from tictactoe_components import html_code
 
 openai.api_key = st.secrets["openai"]["api_key"]
 
@@ -131,33 +132,13 @@ st.sidebar.write(f"O: {st.session_state.scores['O']}")
 st.sidebar.write(f"Draws: {st.session_state.scores['Draw']}")
 
 status = st.empty()
-board = st.session_state.board
 
-for row in range(3):
-    cols = st.columns(3)
-    for col_idx in range(3):
-        idx = row * 3 + col_idx
-        label = board[idx] if board[idx] else " "
-        if st.session_state.game_over:
-            highlight = (
-                st.session_state.winning_combo
-                and idx in st.session_state.winning_combo
-            )
-            style = (
-                "background-color:#fffb91;font-size:40px;text-align:center;" "height:60px;line-height:60px;"
-                if highlight
-                else "font-size:40px;text-align:center;height:60px;line-height:60px;"
-            )
-            cols[col_idx].markdown(
-                f"<div style='{style}'>{label}</div>", unsafe_allow_html=True
-            )
-        else:
-            if cols[col_idx].button(label, key=f"cell{idx}", use_container_width=True):
-                handle_move(idx)
+st.components.v1.html(html_code, height=400)
 
-if st.session_state.game_over:
-    pass
-else:
+# status.write can still be used to display the current player or other
+# information alongside the embedded component if desired.
+# For now, we simply show the player's turn when the game isn't over.
+if not st.session_state.game_over:
     status.write(f"Player {st.session_state.current_player}'s turn")
 
 st.button("Reset Game!", on_click=reset_game)
